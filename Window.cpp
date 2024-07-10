@@ -4,7 +4,6 @@
 
 //  То, что пришлось вынести из-за вызовов в static методе
 LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
-HWND hWnd = NULL;
 
 ID2D1Factory          *pFactory      = NULL;
 ID2D1HwndRenderTarget *pRenderTarget = NULL;
@@ -12,11 +11,11 @@ ID2D1HwndRenderTarget *pRenderTarget = NULL;
 ID2D1SolidColorBrush *pBrush_roadSurface = NULL;
 ID2D1SolidColorBrush *pBrush_roadDelim   = NULL;
 
-int ResourcesInit(void);
+int ResourcesInit(HWND);
 int ResourcesClean(void);
 
 int PaintRoad(void);
-int Paint(void);
+int Paint(HWND);
 
 Window::Window(_In_ HINSTANCE hInstance,
                _In_opt_ HINSTANCE hPrevInstance,
@@ -68,7 +67,7 @@ int Window::ClassInit(void) const {
 }
 
 int Window::HandlerInit(void) const {
-    hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
                          CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
     if (!hWnd) {
@@ -96,7 +95,7 @@ int Window::MsgLoop(void) const {
 }
 
 
-int ResourcesInit(void) {
+int ResourcesInit(HWND hWnd) {
     if (pRenderTarget)
         return 0;
 
@@ -162,7 +161,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
     }
     break;
     case WM_PAINT:
-        Paint();
+        Paint(hWnd);
         break;
     case WM_DESTROY:
         PostQuitMessage(0);
@@ -183,18 +182,18 @@ int PaintRoad(void) {
     float roadBorderLeft = size.width * 0.075f;
     float roadBorderRight = size.width * 0.425f;
     float roadDelimiter = size.width * 0.250f;
+    float roadDelimWidth = size.width * 0.0015f;
     float roadDrawLength = size.height;
-    float roadBrushWidth = size.width * 0.0025f;
 
     D2D1_RECT_F roadSurface = D2D1::RectF(roadBorderLeft, 0, roadBorderRight, roadDrawLength);
     pRenderTarget->FillRectangle(&roadSurface, pBrush_roadSurface);
-    pRenderTarget->DrawLine(D2D1::Point2F(roadDelimiter, 0.0f), D2D1::Point2F(roadDelimiter, roadDrawLength), pBrush_roadDelim, roadBrushWidth);
+    pRenderTarget->DrawLine(D2D1::Point2F(roadDelimiter, 0.0f), D2D1::Point2F(roadDelimiter, roadDrawLength), pBrush_roadDelim, roadDelimWidth);
 
     return 0;
 }
 
-int Paint(void) {
-    if (ResourcesInit())
+int Paint(HWND hWnd) {
+    if (ResourcesInit(hWnd))
         return -1;
 
     PAINTSTRUCT ps;
