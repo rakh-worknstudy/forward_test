@@ -8,7 +8,10 @@ HWND hWnd = NULL;
 
 ID2D1Factory          *pFactory      = NULL;
 ID2D1HwndRenderTarget *pRenderTarget = NULL;
-ID2D1SolidColorBrush  *pBrush        = NULL;
+
+ID2D1SolidColorBrush *pBrush_roadSurface = NULL;
+ID2D1SolidColorBrush *pBrush_roadDelim   = NULL;
+
 int ResourcesInit(void);
 int ResourcesClean(void);
 
@@ -108,8 +111,12 @@ int ResourcesInit(void) {
         return -1;
     }
 
-    D2D1_COLOR_F color = D2D1::ColorF(1.0f, 1.0f, 0);
-    if (FAILED(pRenderTarget->CreateSolidColorBrush(color, &pBrush))) {
+    if (FAILED(pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::DarkGray), &pBrush_roadSurface))) {
+        MessageBox(NULL, _T("Window::ResourceInit(): pRenderTarget->CreateSolidColorBrush() failed"), _T("ERROR"), MB_OK);
+        return -1;
+    }
+
+    if (FAILED(pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::GhostWhite), &pBrush_roadDelim))) {
         MessageBox(NULL, _T("Window::ResourceInit(): pRenderTarget->CreateSolidColorBrush() failed"), _T("ERROR"), MB_OK);
         return -1;
     }
@@ -126,7 +133,7 @@ template <class T> inline void SafeRelease(T** ptr) {
 
 int ResourcesClean(void) {
     SafeRelease(&pRenderTarget);
-    SafeRelease(&pBrush);
+    SafeRelease(&pBrush_roadSurface);
     return 0;
 }
 
@@ -173,12 +180,15 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 int PaintRoad(void) {
     D2D1_SIZE_F size = pRenderTarget->GetSize();
 
-    float leftBorder = size.width * 0.125f;
-    float rightBorder = size.width * 0.625f;
-    float height = size.height;
+    float roadBorderLeft = size.width * 0.075f;
+    float roadBorderRight = size.width * 0.425f;
+    float roadDelimiter = size.width * 0.250f;
+    float roadDrawLength = size.height;
+    float roadBrushWidth = size.width * 0.0025f;
 
-    pRenderTarget->DrawLine(D2D1::Point2F(leftBorder, 0.0f), D2D1::Point2F(leftBorder, height),pBrush, 0.2f);
-    pRenderTarget->DrawLine(D2D1::Point2F(rightBorder, 0.0f), D2D1::Point2F(rightBorder, height), pBrush, 0.2f);
+    D2D1_RECT_F roadSurface = D2D1::RectF(roadBorderLeft, 0, roadBorderRight, roadDrawLength);
+    pRenderTarget->FillRectangle(&roadSurface, pBrush_roadSurface);
+    pRenderTarget->DrawLine(D2D1::Point2F(roadDelimiter, 0.0f), D2D1::Point2F(roadDelimiter, roadDrawLength), pBrush_roadDelim, roadBrushWidth);
 
     return 0;
 }
@@ -191,7 +201,7 @@ int Paint(void) {
     BeginPaint(hWnd, &ps);
 
     pRenderTarget->BeginDraw();
-    pRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::SkyBlue));
+    pRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::AntiqueWhite));
 
     PaintRoad();
 
