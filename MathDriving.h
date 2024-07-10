@@ -1,16 +1,27 @@
 #pragma once
 
-class Car {
+class Movement {
+protected:
+	Movement(void);
+	virtual ~Movement(void);
+private:
+	float speed;
+	float speedAngle;
+	float accel;
+	float accelAngle;
+};
+
+class Car : protected Movement{
 public:
 	Car(void);
 	virtual ~Car(void);
 protected:
 private:
-	int posX;
-	int posY;
+	float position;
+	float angle;
 };
 
-class Road : protected Car {
+class Road {
 public:
 	Road(void);
 	virtual ~Road(void);

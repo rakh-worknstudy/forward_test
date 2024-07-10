@@ -1,21 +1,12 @@
 #include "Window.h"
+#include "WindowPaint.h"
 #include "framework.h"
 #include "resource.h"
+#include <d2d1.h>
+#pragma comment(lib, "d2d1")
 
 //  То, что пришлось вынести из-за вызовов в static методе
 LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
-
-ID2D1Factory          *pFactory      = NULL;
-ID2D1HwndRenderTarget *pRenderTarget = NULL;
-
-ID2D1SolidColorBrush *pBrush_roadSurface = NULL;
-ID2D1SolidColorBrush *pBrush_roadDelim   = NULL;
-
-int ResourcesInit(HWND);
-int ResourcesClean(void);
-
-int PaintRoad(void);
-int Paint(HWND);
 
 Window::Window(_In_ HINSTANCE hInstance,
                _In_opt_ HINSTANCE hPrevInstance,
@@ -31,7 +22,7 @@ Window::Window(_In_ HINSTANCE hInstance,
 }
 
 Window::~Window(void) {
-    ResourcesClean();
+    pSafeRelease();
 }
 
 int Window::Init(void) {
@@ -94,55 +85,13 @@ int Window::MsgLoop(void) const {
     return (int)msg.wParam;
 }
 
-
-int ResourcesInit(HWND hWnd) {
-    if (pRenderTarget)
-        return 0;
-
-    RECT rect;
-    GetClientRect(hWnd, &rect);
-
-    D2D1_SIZE_U size = D2D1::SizeU(rect.right, rect.bottom);
-    if (FAILED(pFactory->CreateHwndRenderTarget(D2D1::RenderTargetProperties(),
-                                                D2D1::HwndRenderTargetProperties(hWnd, size),
-                                                &pRenderTarget))) {
-        MessageBox(NULL, _T("Window::ResourceInit(): pFactory->CreateHwndRenderTarget() failed"), _T("ERROR"), MB_OK);
-        return -1;
-    }
-
-    if (FAILED(pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::DarkGray), &pBrush_roadSurface))) {
-        MessageBox(NULL, _T("Window::ResourceInit(): pRenderTarget->CreateSolidColorBrush() failed"), _T("ERROR"), MB_OK);
-        return -1;
-    }
-
-    if (FAILED(pRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::GhostWhite), &pBrush_roadDelim))) {
-        MessageBox(NULL, _T("Window::ResourceInit(): pRenderTarget->CreateSolidColorBrush() failed"), _T("ERROR"), MB_OK);
-        return -1;
-    }
-
-    return 0;
-}
-
-template <class T> inline void SafeRelease(T** ptr) {
-    if (*ptr) {
-        (*ptr)->Release();
-        *ptr = NULL;
-    }
-}
-
-int ResourcesClean(void) {
-    SafeRelease(&pRenderTarget);
-    SafeRelease(&pBrush_roadSurface);
-    return 0;
-}
-
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_CREATE:
     {
-        if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pFactory)))
+        if (pFactoryInit(hWnd))
             return 0;
         return 1;
     }
@@ -167,8 +116,9 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         PostQuitMessage(0);
         break;
     case WM_KEYDOWN:
-        break;
     case WM_KEYUP:
+    case VK_LEFT:
+    case VK_RIGHT:
         break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
@@ -176,39 +126,3 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
     return 0;
 }
 
-int PaintRoad(void) {
-    D2D1_SIZE_F size = pRenderTarget->GetSize();
-
-    float roadBorderLeft = size.width * 0.075f;
-    float roadBorderRight = size.width * 0.425f;
-    float roadDelimiter = size.width * 0.250f;
-    float roadDelimWidth = size.width * 0.0015f;
-    float roadDrawLength = size.height;
-
-    D2D1_RECT_F roadSurface = D2D1::RectF(roadBorderLeft, 0, roadBorderRight, roadDrawLength);
-    pRenderTarget->FillRectangle(&roadSurface, pBrush_roadSurface);
-    pRenderTarget->DrawLine(D2D1::Point2F(roadDelimiter, 0.0f), D2D1::Point2F(roadDelimiter, roadDrawLength), pBrush_roadDelim, roadDelimWidth);
-
-    return 0;
-}
-
-int Paint(HWND hWnd) {
-    if (ResourcesInit(hWnd))
-        return -1;
-
-    PAINTSTRUCT ps;
-    BeginPaint(hWnd, &ps);
-
-    pRenderTarget->BeginDraw();
-    pRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::AntiqueWhite));
-
-    PaintRoad();
-
-    HRESULT result = pRenderTarget->EndDraw();
-    if (FAILED(result) || result == D2DERR_RECREATE_TARGET) {
-        ResourcesClean();
-    }
-
-    EndPaint(hWnd, &ps);
-    return 0;
-}

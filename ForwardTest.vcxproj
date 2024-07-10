@@ -133,11 +133,13 @@
     <ClInclude Include="MathDriving.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Window.h" />
+    <ClInclude Include="WindowPaint.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ForwardTest.cpp" />
     <ClCompile Include="MathDriving.cpp" />
     <ClCompile Include="Window.cpp" />
+    <ClCompile Include="WindowPaint.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ForwardTest.rc" />
