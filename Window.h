@@ -1,13 +1,11 @@
 #pragma once
 
 #include <Windows.h>
-
-
 #include "MathDriving.h"
 
 constexpr short unsigned int MAX_LOADSTRING = 100;
 
-class Window : protected Road {
+class Window {
 public:
     Window(_In_ HINSTANCE     hInstance,
            _In_opt_ HINSTANCE hPrevInstance,
@@ -31,5 +29,8 @@ private:
     int ClassInit(void) const;
     int HandlerInit(void) const;
     int MsgLoop(void) const;
+
+    //
+    world::World World;
 };
 

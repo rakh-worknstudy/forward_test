@@ -11,7 +11,7 @@ LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
 Window::Window(_In_ HINSTANCE hInstance,
                _In_opt_ HINSTANCE hPrevInstance,
                _In_ LPWSTR lpCmdLine,
-               _In_ int nCmdShow) {
+               _In_ int nCmdShow) : World() {
    this->hInstance = hInstance;
    this->hPrevInstance = hPrevInstance;
    this->lpCmdLine = lpCmdLine;
@@ -22,7 +22,7 @@ Window::Window(_In_ HINSTANCE hInstance,
 }
 
 Window::~Window(void) {
-    pSafeRelease();
+    windowPaint::safe_release();
 }
 
 int Window::Init(void) {
@@ -35,7 +35,7 @@ int Window::Init(void) {
 }
 
 int Window::ClassInit(void) const {
-    WNDCLASSEXW windowClassEx;
+    WNDCLASSEXW windowClassEx = {0};
 
     windowClassEx.cbSize = sizeof(WNDCLASSEX);
     windowClassEx.style = CS_HREDRAW | CS_VREDRAW;
@@ -91,7 +91,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
     {
     case WM_CREATE:
     {
-        if (pFactoryInit(hWnd))
+        if (windowPaint::factory_init(hWnd))
             return 0;
         return 1;
     }
@@ -109,8 +109,12 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         }
     }
     break;
+    case WM_SIZE:
+        if (windowPaint::resize(hWnd))
+            DestroyWindow(hWnd);
+        break;
     case WM_PAINT:
-        Paint(hWnd);
+        windowPaint::paint(hWnd);
         break;
     case WM_DESTROY:
         PostQuitMessage(0);
@@ -119,6 +123,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
     case WM_KEYUP:
     case VK_LEFT:
     case VK_RIGHT:
+
         break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
