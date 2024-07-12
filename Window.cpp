@@ -1,17 +1,31 @@
 #include "Window.h"
 #include "WindowPaint.h"
+#include "MathDriving.h"
+
 #include "framework.h"
 #include "resource.h"
 #include <d2d1.h>
 #pragma comment(lib, "d2d1")
 
-//  “о, что пришлось вынести из-за вызовов в static методе
+//  ƒл€ окон и отрисовки были выбраны WinApi и Direct2D по общим соображени€м:
+//  - ѕо заданию проект в Visual Studio -> веро€тно, Windows
+//  - Direct2 лучше/интереснее стандартных битмап
+
+//  »з-за трудностей работы с WindowProc как static методом (иначе не подать в WINCLASSEX)
+//  часть кода была вынесена в global scope ради выполнени€ задачи. ¬озможно, объект
+//  класса Window получилось бы доставать из параметров WindowProc, но с этим возникли
+//  трудности, а т.к. врем€ ограничено было выбрано быстрое решение.
+
+//  »з подобных соображений окно сделано статическим: минимального стандартного размера.
+
+world::World World = world::World();
+
 LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
 
 Window::Window(_In_ HINSTANCE hInstance,
                _In_opt_ HINSTANCE hPrevInstance,
                _In_ LPWSTR lpCmdLine,
-               _In_ int nCmdShow) : World() {
+               _In_ int nCmdShow) {
    this->hInstance = hInstance;
    this->hPrevInstance = hPrevInstance;
    this->lpCmdLine = lpCmdLine;
@@ -91,6 +105,8 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
     {
     case WM_CREATE:
     {
+        if (windowPaint::car_relative_size_init(world::car::relativeWidth, world::car::relativeLength))
+            return 0;
         if (windowPaint::factory_init(hWnd))
             return 0;
         return 1;
@@ -114,16 +130,20 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             DestroyWindow(hWnd);
         break;
     case WM_PAINT:
-        windowPaint::paint(hWnd);
-        break;
-    case WM_DESTROY:
-        PostQuitMessage(0);
+    {
+        float carPosition = World.GetCarPosition();
+        float carAngle = World.GetCarAngle();
+        windowPaint::paint(hWnd, carPosition, carAngle);
+    }
         break;
     case WM_KEYDOWN:
     case WM_KEYUP:
     case VK_LEFT:
     case VK_RIGHT:
 
+        break;
+    case WM_DESTROY:
+        PostQuitMessage(0);
         break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);

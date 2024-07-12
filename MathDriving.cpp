@@ -3,14 +3,27 @@
 #include <cmath>
 
 //  ----------------------------------------------------------------
+//                           CAR CLASS
+//  ----------------------------------------------------------------
 
-world::car::Car::Car(void) : position(0),
-                 angle(0) {
+world::car::Car::Car(void) {
+    this->position = initPosition;
+    this->angle = initAngle;
 }
 world::car::Car::~Car(void) {}
 
+float world::car::Car::GetPosition(void) const {
+    return position;
+}
+
+float world::car::Car::GetAngle(void) const {
+    return angle;
+}
 
 //  ----------------------------------------------------------------
+//                           ROAD CLASS
+//  ----------------------------------------------------------------
+
 static inline unsigned rand_fragment_length(void) {
     return world::road::fragment::MIN_LENGTH + (unsigned) std::rand() %
         (world::road::fragment::MAX_LENGTH - world::road::fragment::MIN_LENGTH);
@@ -46,6 +59,8 @@ world::road::Road::Road(void) {
 world::road::Road::~Road(void) {}
 
 //  ----------------------------------------------------------------
+//                          WORLD CLASS
+//  ----------------------------------------------------------------
 
 world::World::World(void) : Road(), Car() {
     carState = car::state::NONE;
@@ -53,6 +68,14 @@ world::World::World(void) : Road(), Car() {
 world::World::~World(void) {
     Road.~Road();
     Car.~Car();
+}
+
+float world::World::GetCarPosition(void) const {
+    return Car.GetPosition();
+}
+
+float world::World::GetCarAngle(void) const {
+    return Car.GetAngle();
 }
 
 uint8_t world::World::Drive(unsigned int message) {

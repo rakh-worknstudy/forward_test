@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Windows.h>
-#include "MathDriving.h"
 
 constexpr short unsigned int MAX_LOADSTRING = 100;
 
@@ -29,8 +28,5 @@ private:
     int ClassInit(void) const;
     int HandlerInit(void) const;
     int MsgLoop(void) const;
-
-    //
-    world::World World;
 };
 
