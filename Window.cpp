@@ -58,8 +58,8 @@ int Window::ClassInit(void) const {
 }
 
 int Window::HandlerInit(void) const {
-    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-                         CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU ,
+                         CW_USEDEFAULT, 0, 640, 480, nullptr, nullptr, hInstance, nullptr);
 
     if (!hWnd) {
         MessageBox(NULL, _T("Window::HanlerInit(): CreateWindow() failed"), _T("ERROR"), MB_OK);
