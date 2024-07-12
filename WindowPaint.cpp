@@ -2,7 +2,7 @@
 #include <tchar.h>
 
 namespace windowPaint {
-    constexpr float FLOAT_UNINITIALIZED = -1.0f;
+    constexpr float FLOAT_UNINITIALIZED = 0.0f;
 
     enum brush_e {
         begin = 0,
@@ -23,21 +23,20 @@ namespace windowPaint {
 
     ID2D1Factory          * factory = NULL;
     ID2D1HwndRenderTarget * renderTarget[renderTarget_e::count];
-    ID2D1SolidColorBrush  * brush[windowPaint::brush_e::count];
+    ID2D1SolidColorBrush  * brush[brush_e::count];
 
     namespace road {
         namespace size {
-            constexpr float relativeBorderLeft = 0.075f;
-            constexpr float relativeBorderRight = 0.425f;
-            constexpr float relativeDelimPos = (relativeBorderLeft + relativeBorderRight) / 2;
-            constexpr float relativeDelimWidth = 0.008f;
-            constexpr float relativeDelimDashLength = 0.35f;
+            constexpr float RELATIVE_LEFT = 0.075f;
+            constexpr float RELATIVE_RIGHT = 0.425f;
+            constexpr float RELATIVE_DELIM = (RELATIVE_LEFT + RELATIVE_RIGHT) / 2;
+            constexpr float RELATIVE_DELIM_WIDTH = 0.008f;
 
-            float borderLeft = FLOAT_UNINITIALIZED;
-            float borderRight = FLOAT_UNINITIALIZED;
-            float delimPos = FLOAT_UNINITIALIZED;
+            D2D1_RECT_F surfaceRect = D2D1::RectF(FLOAT_UNINITIALIZED, FLOAT_UNINITIALIZED, 
+                                                  FLOAT_UNINITIALIZED, FLOAT_UNINITIALIZED);
+
+            float delim = FLOAT_UNINITIALIZED;
             float delimWidth = FLOAT_UNINITIALIZED;
-            float length = FLOAT_UNINITIALIZED;
         }   //  size
 
         static int resize(void);
@@ -47,32 +46,36 @@ namespace windowPaint {
             if (!renderTarget[renderTarget_e::road])
                 return -1;
 
-            D2D1_SIZE_F renderSize = renderTarget[renderTarget_e::road]->GetSize();
-            size::borderLeft = renderSize.width * size::relativeBorderLeft;
-            size::borderRight = renderSize.width * size::relativeBorderRight;
-            size::delimPos = renderSize.width * size::relativeDelimPos;
-            size::delimWidth = renderSize.width * size::relativeDelimWidth;
-            size::length = renderSize.height;
+            D2D1_SIZE_F targetSize = renderTarget[renderTarget_e::road]->GetSize();
+
+            static constexpr float top = 0.0f;
+            float bottom = targetSize.height;
+            float left = targetSize.width * size::RELATIVE_LEFT;
+            float right = targetSize.width * size::RELATIVE_RIGHT;
+            size::surfaceRect = D2D1::RectF(left, top, right, bottom);
+
+            size::delim = targetSize.width * size::RELATIVE_DELIM;
+            size::delimWidth = targetSize.width * size::RELATIVE_DELIM_WIDTH;
 
             return 0;
         }
 
-        static inline int paint_surface(void) {
-
-            return 0;
-        }
-        static inline int paint_delim_solid(float from, float to) {
-            return 0;
+        static inline void paint_surface(void) {
+            renderTarget[renderTarget_e::road]->FillRectangle(&size::surfaceRect, brush[brush_e::roadSurface]);
         }
 
-        int paint(void) {
+        static inline void paint_delim_solid(float from, float to) {
+            renderTarget[renderTarget_e::road]->DrawLine(D2D1::Point2F(size::delim, from),
+                                                         D2D1::Point2F(size::delim, to),
+                                                         brush[windowPaint::brush_e::roadDelim],
+                                                         size::delimWidth);
+        }
+
+        static int paint(void) {
             if (!renderTarget[renderTarget_e::road])
                 return -1;
-
-            D2D1_SIZE_F renderSize = renderTarget[renderTarget_e::road]->GetSize();
             paint_surface();
-            paint_delim_solid(0, size::length);
-
+            paint_delim_solid(size::surfaceRect.top, size::surfaceRect.bottom);
             return 0;
         }
 
@@ -86,6 +89,7 @@ namespace windowPaint {
             float width = FLOAT_UNINITIALIZED;
             float length = FLOAT_UNINITIALIZED;
         }   //  size
+
         static void resize(void);
     }   //  car
 
@@ -102,14 +106,14 @@ namespace windowPaint {
     }
 
     int resize(HWND hWnd) {
-        if (!renderTarget)
+        if (!renderTarget[renderTarget_e::road])
             return 0;
 
         RECT rect;
         GetClientRect(hWnd, &rect);
 
         D2D1_SIZE_U size = D2D1::SizeU(rect.right, rect.bottom);
-        if (FAILED(renderTarget->Resize(size)))
+        if (FAILED(renderTarget[renderTarget_e::road]->Resize(size)))
             return -1;
 
         road::resize();
@@ -230,39 +234,6 @@ int windowPaint::safe_release(void) {
     return 0;
 }
 
-//  ----------------------------------------------------------------
-
-int paint_road(void);
-int paint_car(float carPosition, float carAngle);
-
-int windowPaint::
-
-//  ----------------------------------------------------------------
-
-static inline void paint_road_surface(void) {
-    D2D1_RECT_F roadSurface = D2D1::RectF(paintSize::road::borderLeft, 0, paintSize::road::borderRight, paintSize::road::length);
-    renderTarget->FillRectangle(&roadSurface, brush[windowPaint::brush_e::roadSurface]);
-}
-
-static inline void paint_road_delim_solid(float from, float to) {
-    renderTarget->DrawLine(D2D1::Point2F(paintSize::road::delimPos, from),
-                           D2D1::Point2F(paintSize::road::delimPos, to),
-                           brush[windowPaint::brush_e::roadDelim], paintSize::road::delimWidth);
-}
-
-static inline void paint_road_delim_dash(float from, float to) {
-    D2D1_SIZE_U pixelSize = renderTarget->GetPixelSize();
-}
-
-int paint_road(void) {
-    D2D1_SIZE_F renderSize = renderTarget->GetSize();
-    paint_road_surface();
-    paint_road_delim_solid(0, paintSize::road::length);
-
-    return 0;
-}
-
-//  ----------------------------------------------------------------
 
 static void paintSize::car::resize(void) {
     D2D1_SIZE_F renderSize = renderTarget->GetSize();
