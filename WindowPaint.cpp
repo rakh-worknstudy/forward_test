@@ -4,28 +4,20 @@
 namespace windowPaint {
     constexpr float FLOAT_UNINITIALIZED = 0.0f;
 
-    enum brush_e {
-        begin = 0,
-        roadSurface = begin,
-        roadDelim,
-        car,
-        count,
-        bad = -1
-    };
-
-    enum renderTarget_e {
-        begin = 0,
-        road = begin,
-        car,
-        count,
-        bad = -1
-    };
-
     ID2D1Factory          * factory = NULL;
-    ID2D1HwndRenderTarget * renderTarget[renderTarget_e::count];
-    ID2D1SolidColorBrush  * brush[brush_e::count];
+    ID2D1HwndRenderTarget * renderTargetMain = NULL;
+    ID2D1HwndRenderTarget * renderTargetCar = NULL;
 
     namespace road {
+        enum brush_e {
+            brush_begin = 0,
+            brush_surface = brush_begin,
+            brush_delim,
+            brush_count,
+            brush_bad = -1
+        };
+
+        ID2D1SolidColorBrush * brush[brush_count];
         namespace size {
             constexpr float RELATIVE_LEFT = 0.075f;
             constexpr float RELATIVE_RIGHT = 0.425f;
@@ -43,10 +35,10 @@ namespace windowPaint {
         static int paint(void);
 
         static int resize(void) {
-            if (!renderTarget[renderTarget_e::road])
+            if (!renderTargetMain)
                 return -1;
 
-            D2D1_SIZE_F targetSize = renderTarget[renderTarget_e::road]->GetSize();
+            D2D1_SIZE_F targetSize = renderTargetMain->GetSize();
 
             static constexpr float top = 0.0f;
             float bottom = targetSize.height;
@@ -61,18 +53,17 @@ namespace windowPaint {
         }
 
         static inline void paint_surface(void) {
-            renderTarget[renderTarget_e::road]->FillRectangle(&size::surfaceRect, brush[brush_e::roadSurface]);
+            renderTargetMain->FillRectangle(&size::surfaceRect, brush[brush_surface]);
         }
 
         static inline void paint_delim_solid(float from, float to) {
-            renderTarget[renderTarget_e::road]->DrawLine(D2D1::Point2F(size::delim, from),
-                                                         D2D1::Point2F(size::delim, to),
-                                                         brush[windowPaint::brush_e::roadDelim],
-                                                         size::delimWidth);
+            renderTargetMain->DrawLine(D2D1::Point2F(size::delim, from),
+                D2D1::Point2F(size::delim, to), brush[brush_delim],
+                size::delimWidth);
         }
 
         static int paint(void) {
-            if (!renderTarget[renderTarget_e::road])
+            if (!renderTargetMain)
                 return -1;
             paint_surface();
             paint_delim_solid(size::surfaceRect.top, size::surfaceRect.bottom);
@@ -82,6 +73,14 @@ namespace windowPaint {
     }   //  road
 
     namespace car {
+        enum brush_e {
+            brush_begin = 0,
+            brush_car = brush_begin,
+            brush_count,
+            brush_bad = -1
+        };
+        ID2D1SolidColorBrush * brush[brush_count];
+
         namespace size {
             constexpr float relativePosY = 0.5f;
             float relativeWidth = FLOAT_UNINITIALIZED;
@@ -91,6 +90,31 @@ namespace windowPaint {
         }   //  size
 
         static void resize(void);
+        static int paint(float carPosition, float carAngle) {
+            D2D1_RECT_F roadRect = road::size::surfaceRect;
+            float carPaintPositionX = (roadRect.right - roadRect.left) * carPosition + roadRect.left;
+            float carPaintPositionY = roadRect.bottom * size::relativePosY;
+
+            float carHalfLength = size::length / 2.0f;
+            float carHalfWidth = size::width / 2.0f;
+
+            float carLeft = carPaintPositionX - carHalfWidth;
+            float carTop = carPaintPositionY + carHalfLength;
+            float carRight = carPaintPositionX + carHalfWidth;
+            float carBottom = carPaintPositionY - carHalfLength;
+
+            D2D1_RECT_F car = D2D1::RectF(carLeft, carTop, carRight, carBottom);
+            renderTargetMain->FillRectangle(&car, brush[brush_car]);
+
+            return 0;
+        }
+
+        static void resize(void) {
+            D2D1_SIZE_F renderSize = renderTargetMain->GetSize();
+            D2D1_RECT_F roadRect = road::size::surfaceRect;
+            size::width = (roadRect.right - roadRect.left) / size::relativeWidth;
+            size::length = size::width * size::relativeLength;
+        }
     }   //  car
 
     int factory_init(HWND hWnd) {
@@ -105,15 +129,42 @@ namespace windowPaint {
         return 0;
     }
 
-    int resize(HWND hWnd) {
-        if (!renderTarget[renderTarget_e::road])
+    static int target_brushes_and_size_init(HWND hWnd) {
+        if (renderTargetMain)
             return 0;
 
         RECT rect;
         GetClientRect(hWnd, &rect);
 
         D2D1_SIZE_U size = D2D1::SizeU(rect.right, rect.bottom);
-        if (FAILED(renderTarget[renderTarget_e::road]->Resize(size)))
+        if (FAILED(factory->CreateHwndRenderTarget(D2D1::RenderTargetProperties(),
+            D2D1::HwndRenderTargetProperties(hWnd, size), &renderTargetMain)))
+            return -1;
+
+        if (FAILED(renderTargetMain->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::DarkGray), &road::brush[road::brush_surface])))
+            return -1;
+
+        if (FAILED(renderTargetMain->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::GhostWhite), &road::brush[road::brush_delim])))
+            return -1;
+
+        if (FAILED(renderTargetMain->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), &car::brush[car::brush_car])))
+            return -1;
+
+        road::resize();
+        car::resize();
+
+        return 0;
+    }
+
+    int resize(HWND hWnd) {
+        if (!renderTargetMain)
+            return 0;
+
+        RECT rect;
+        GetClientRect(hWnd, &rect);
+
+        D2D1_SIZE_U size = D2D1::SizeU(rect.right, rect.bottom);
+        if (FAILED(renderTargetMain->Resize(size)))
             return -1;
 
         road::resize();
@@ -129,13 +180,13 @@ namespace windowPaint {
         PAINTSTRUCT ps;
         BeginPaint(hWnd, &ps);
 
-        renderTarget->BeginDraw();
-        renderTarget->Clear(D2D1::ColorF(D2D1::ColorF::AntiqueWhite));
+        renderTargetMain->BeginDraw();
+        renderTargetMain->Clear(D2D1::ColorF(D2D1::ColorF::AntiqueWhite));
 
-        paint_road();
-        paint_car(carPosition, carAngle);
+        road::paint();
+        car::paint(carPosition, carAngle);
 
-        HRESULT result = renderTarget->EndDraw();
+        HRESULT result = renderTargetMain->EndDraw();
         if (FAILED(result) || result == D2DERR_RECREATE_TARGET) {
             safe_release();
         }
@@ -153,111 +204,12 @@ namespace windowPaint {
 
     int safe_release(void) {
         safe_release_ptr(&factory);
-        safe_release_ptr(&renderTarget);
-        for (int i = brush_e::begin; i < brush_e::count; ++i)
-            safe_release_ptr(&brush[i]);
-
+        safe_release_ptr(&renderTargetMain);
+        safe_release_ptr(&renderTargetCar);
+        for (int i = road::brush_begin; i < road::brush_count; ++i)
+            safe_release_ptr(&road::brush[i]);
+        for (int i = car::brush_begin; i < car::brush_count; ++i)
+            safe_release_ptr(&car::brush[i]);
         return 0;
     }
 }   //  windowPaint
-ID2D1Factory          * factory = NULL;
-ID2D1HwndRenderTarget * renderTarget = NULL;
-ID2D1SolidColorBrush  * brush[windowPaint::brush_e::count];
-//  ----------------------------------------------------------------
-
-
-int windowPaint::car_relative_size_init(float relativeWidth, float relativeLength) {
-    paintSize::car::relativeWidth = relativeWidth;
-    paintSize::car::relativeLength = relativeLength;
-    return 0;
-}
-
-static int target_brushes_and_size_init(HWND hWnd) {
-    if (renderTarget)
-        return 0;
-
-    RECT rect;
-    GetClientRect(hWnd, &rect);
-
-    D2D1_SIZE_U size = D2D1::SizeU(rect.right, rect.bottom);
-    if (FAILED(factory->CreateHwndRenderTarget(D2D1::RenderTargetProperties(),
-        D2D1::HwndRenderTargetProperties(hWnd, size), &renderTarget)))
-        return -1;
-
-    if (FAILED(renderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::DarkGray), &brush[windowPaint::brush_e::roadSurface])))
-        return -1;
-
-    if (FAILED(renderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::GhostWhite), &brush[windowPaint::brush_e::roadDelim])))
-        return -1;
-
-    if (FAILED(renderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), &brush[windowPaint::brush_e::car])))
-        return -1;
-
-    paintSize::road::resize();
-    paintSize::car::resize();
-
-    return 0;
-}
-
-int windowPaint::resize(HWND hWnd) {
-    if (!renderTarget)
-        return 0;
-
-    RECT rect;
-    GetClientRect(hWnd, &rect);
-
-    D2D1_SIZE_U size = D2D1::SizeU(rect.right, rect.bottom);
-    if (FAILED(renderTarget->Resize(size)))
-        return -1;
-
-    paintSize::road::resize();
-    paintSize::car::resize();
-
-    return 0;
-}
-
-//  ----------------------------------------------------------------
-
-template <class T> inline void safe_release_ptr(T** ptr) {
-    if (*ptr) {
-        (*ptr)->Release();
-        *ptr = NULL;
-    }
-}
-
-int windowPaint::safe_release(void) {
-    safe_release_ptr(&factory);
-    safe_release_ptr(&renderTarget);
-    for (int i = brush_e::begin; i < brush_e::count; ++i)
-        safe_release_ptr(&brush[i]);
-
-    return 0;
-}
-
-
-static void paintSize::car::resize(void) {
-    D2D1_SIZE_F renderSize = renderTarget->GetSize();
-
-    paintSize::car::width = (paintSize::road::borderRight - paintSize::road::borderLeft) / paintSize::car::relativeWidth;
-    paintSize::car::length = paintSize::car::width * paintSize::car::relativeLength;
-}
-
-int paint_car(float carPosition, float carAngle) {
-
-    float carPaintPositionX = (paintSize::road::borderRight - paintSize::road::borderLeft) * carPosition +
-                             paintSize::road::borderLeft;
-    float carPaintPositionY = paintSize::road::length * paintSize::car::relativePosY;
-
-    float carHalfLength = paintSize::car::length / 2.0f;
-    float carHalfWidth = paintSize::car::width / 2.0f;
-
-    float carLeft = carPaintPositionX - carHalfWidth;
-    float carTop = carPaintPositionY + carHalfLength;
-    float carRight = carPaintPositionX + carHalfWidth;
-    float carBottom = carPaintPositionY - carHalfLength;
-
-    D2D1_RECT_F car = D2D1::RectF(carLeft, carTop, carRight, carBottom);
-    renderTarget->FillRectangle(&car, brush[windowPaint::brush_e::car]);
-
-    return 0;
-}
