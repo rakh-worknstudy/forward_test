@@ -82,26 +82,27 @@ namespace windowPaint {
         ID2D1SolidColorBrush * brush[brush_count];
 
         namespace size {
-            constexpr float relativePosY = 0.5f;
-            float relativeWidth = FLOAT_UNINITIALIZED;
             float relativeLength = FLOAT_UNINITIALIZED;
-            float width = FLOAT_UNINITIALIZED;
+            float relativeWidth = FLOAT_UNINITIALIZED;
             float length = FLOAT_UNINITIALIZED;
+            float width = FLOAT_UNINITIALIZED;
         }   //  size
 
         static void resize(void);
         static int paint(float carPosition, float carAngle) {
             D2D1_RECT_F roadRect = road::size::surfaceRect;
-            float carPaintPositionX = (roadRect.right - roadRect.left) * carPosition + roadRect.left;
-            float carPaintPositionY = roadRect.bottom * size::relativePosY;
+            float roadWidth = roadRect.right - roadRect.left;
 
-            float carHalfLength = size::length / 2.0f;
-            float carHalfWidth = size::width / 2.0f;
+            float carLengthHalf = size::length / 2.0f;
+            float carWidthHalf = size::width / 2.0f;
 
-            float carLeft = carPaintPositionX - carHalfWidth;
-            float carTop = carPaintPositionY + carHalfLength;
-            float carRight = carPaintPositionX + carHalfWidth;
-            float carBottom = carPaintPositionY - carHalfLength;
+            float carPaintPositionX = roadWidth * carPosition + roadRect.left;
+            float carPaintPositionY = roadRect.bottom * 0.5f;
+
+            float carLeft = carPaintPositionX - carWidthHalf;
+            float carTop = carPaintPositionY + carLengthHalf;
+            float carRight = carPaintPositionX + carWidthHalf;
+            float carBottom = carPaintPositionY - carLengthHalf;
 
             D2D1_RECT_F car = D2D1::RectF(carLeft, carTop, carRight, carBottom);
             renderTargetMain->FillRectangle(&car, brush[brush_car]);
@@ -112,8 +113,9 @@ namespace windowPaint {
         static void resize(void) {
             D2D1_SIZE_F renderSize = renderTargetMain->GetSize();
             D2D1_RECT_F roadRect = road::size::surfaceRect;
-            size::width = (roadRect.right - roadRect.left) / size::relativeWidth;
-            size::length = size::width * size::relativeLength;
+            float roadWidth = roadRect.right - roadRect.left;
+            size::length = roadWidth * size::relativeLength;
+            size::width = roadWidth * size::relativeWidth;
         }
     }   //  car
 
@@ -123,9 +125,9 @@ namespace windowPaint {
         return 0;
     }
 
-    int car_relative_size_init(float relativeWidth, float relativeLength) {
-        car::size::relativeWidth = relativeWidth;
-        car::size::relativeLength = relativeLength;
+    int car_size_init(float relative_length, float relative_width) {
+        car::size::relativeLength = relative_length;
+        car::size::relativeWidth = relative_width;
         return 0;
     }
 

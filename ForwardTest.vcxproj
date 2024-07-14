@@ -133,6 +133,7 @@
     <ClInclude Include="MathDriving.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Window.h" />
+    <ClInclude Include="WindowKeyState.h" />
     <ClInclude Include="WindowPaint.h" />
   </ItemGroup>
   <ItemGroup>

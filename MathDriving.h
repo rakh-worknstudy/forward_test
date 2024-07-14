@@ -4,77 +4,94 @@
 #include <vector>
 
 namespace world {
-    namespace road {
-        //  CRITICALLY BAD BEHAVIOR IF LENGTH < MAX_LENGTH OR MAX_LENGTH < MIN_LENGTH
-        constexpr unsigned LENGTH = 1500;
-        namespace fragment {
-            constexpr unsigned MIN_LENGTH = 50;
-            constexpr unsigned MAX_LENGTH = 150;    //  Actual Max MAX_LENGTH * 3 - 1 (+ Cycle repeat)
+    static constexpr float WORLD_SCALE_BASE = 1.0f;
 
-            enum type_e {
-                begin = 0,
-                solid = begin,
-                dash,
-                count,
-                bad = -1
-            };
-        }
+    static constexpr float WORLD_M_PI = 3.14159265358979323846f;
+    static constexpr float WORLD_M_2PI = WORLD_M_PI * 2;
+    static constexpr float WORLD_M_PI_2 = 1.57079632679489661923f;
+    static constexpr float WORLD_M_PI_4 = 0.785398163397448309616f;
 
-        constexpr float width = 1.0f;
+    static constexpr uint8_t CAR_STATE_NONE = 0x00;
+    static constexpr uint8_t CAR_STATE_WRONG_DIRECTION = 0x01;
+    static constexpr uint8_t CAR_STATE_SOLID_CROSSED = 0x02;
 
-        class Road {
-        public:
-            Road(void);
-            ~Road(void);
-        private:
-            //  Solid/Dash road
-            std::vector<std::pair<unsigned, uint8_t>> Fragment;
-            std::vector<std::pair<unsigned, uint8_t>>::iterator CurrentFragment;
-            void RandFragments(void);
-        };
-    }   //  road
+    static constexpr uint8_t DELIM_TYPE_SOLID = 0x00;
+    static constexpr uint8_t DELIM_TYPE_DASH = 0x01;
 
-    namespace car {
-        namespace state {
-            constexpr uint8_t NONE = 0x00;
-            constexpr uint8_t WRONG_DIRECTION = 0x01;
-            constexpr uint8_t CROSS_SOLID = 0x02;
-        }   //  state
+    class Road {
+    public:
+        Road(void);
+        ~Road(void);
+    private:
+        //  Critically BAD behavior if ROAD_LENGTH < MAX_FRAGMENT_LENGTH 
+        //  or MAX_FRAGMENT_LENGTH < MIN_FRAGMENT_LENGTH
+        static constexpr unsigned ROAD_LENGTH_U = 1500;
+        static constexpr unsigned MIN_FRAGMENT_LENGTH_U = 50;
+        static constexpr unsigned MAX_FRAGMENT_LENGTH_U = 150; //  Note: [0], [N-1] and [N-2] might be same type
 
-        constexpr float relativeWidth = 6.0f;  //  Road relation
-        constexpr float width = road::width / relativeWidth;  //  Car width relative to road
-        constexpr float relativeLength = 2.0f;
-        constexpr float length = width * relativeLength;
-        constexpr float relativeInitPosition = 5.0f;  //  Car initial position relation
-        constexpr float initPosition = width * relativeInitPosition;  //  Car inital position
-        constexpr float initAngle = 0.0f;  //  Starting angle
+        typedef std::pair<unsigned, uint8_t> fragment_t;
+        std::vector<fragment_t> delim;
+        std::vector<fragment_t>::iterator currentFragment;
+        void RandFragments(void);
+    };
 
-        class Car {
-        public:
-            Car(void);
-            ~Car(void);
-            float GetPosition(void) const;
-            float GetAngle(void) const;
-        private:
-            float position;
-            float angle;
-        };
-    }   //  car
+    class Car {
+    public:
+        Car(void);
+        ~Car(void);
 
-    class World {
+        float GetLength(void) const;
+        float GetWidth(void) const;
+        float GetX(void) const;
+        float GetY(void) const;
+        float GetAngle(void) const;
+
+        void Drive(unsigned message, unsigned ms_elapsed);
+        void Bump(float x_lim);
+    private:
+        static constexpr float CAR_LENGTH_BASE   = WORLD_SCALE_BASE / 3.0f;
+        static constexpr float CAR_WIDTH_BASE    = WORLD_SCALE_BASE / 6.0f;
+        float length;
+        float width;
+
+        static constexpr float CAR_X_POS_BASE = WORLD_SCALE_BASE / 5.0f;
+        static constexpr float CAR_Y_POS_BASE = WORLD_SCALE_BASE * 10.0f;
+        static constexpr unsigned CAR_Y_FRAGMENT = 0u;
+        float x_pos;
+        float y_pos;
+        unsigned y_fragment;
+
+        static constexpr float CAR_SPEED_BASE = 0.0f;
+        float speed;
+
+        static constexpr float CAR_ANGLE_PHASE = WORLD_M_PI_4;
+        static constexpr float CAR_ANGLE_BASE = 0.0f;
+        static constexpr float CAR_TURN_RATE = WORLD_M_PI * 0.02f;
+        float angle;
+        float sinLast;
+        float cosLast;
+
+        void SpeedUp(void);
+        void SpeedDown(void);
+        void SpeedLoss(void);
+        void Turn(float turn_rate);
+        void Move(unsigned message);
+    };
+
+    class World {   
     public:
         World(void);
         ~World(void);
-        //  Car
-        float GetCarPosition(void) const;
+        float GetCarLength(void) const;
+        float GetCarWidth(void) const;
+        float GetCarPositionX(void) const;
+        float GetCarPositionY(void) const;
         float GetCarAngle(void) const;
-        uint8_t Drive(unsigned int message);
-        //  Road
+        uint8_t Drive(unsigned message, unsigned ms_elapsed);
     private:
-        road::Road Road;
-        car::Car Car;
-        uint8_t carState;
-        void CarStateCheck(void);
+        Road Road;
+        Car Car;
+        uint8_t CarStateCheck(void);
     };
 
 }   //  world;

@@ -1,6 +1,7 @@
 #include "Window.h"
 #include "WindowPaint.h"
 #include "MathDriving.h"
+#include "WindowKeyState.h"
 
 #include "framework.h"
 #include "resource.h"
@@ -101,18 +102,17 @@ int Window::MsgLoop(void) const {
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    switch (message)
-    {
-    case WM_CREATE:
-    {
-        if (windowPaint::car_relative_size_init(world::car::relativeWidth, world::car::relativeLength))
-            return 0;
+    if (message == WM_CREATE) {
         if (windowPaint::factory_init(hWnd))
             return 0;
+        if (windowPaint::car_size_init(World.GetCarLength(), World.GetCarWidth()))
+            return 0;
+        SetTimer(hWnd, 7777777, 20, NULL);
         return 1;
     }
-    case WM_COMMAND:
-    {
+
+    switch (message) {
+    case WM_COMMAND: {
         int wmId = LOWORD(wParam);
         // Разобрать выбор в меню:
         switch (wmId)
@@ -125,23 +125,29 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         }
     }
     break;
-    case WM_SIZE:
+    case WM_SIZE: {
         if (windowPaint::resize(hWnd))
             DestroyWindow(hWnd);
         break;
-    case WM_PAINT:
-    {
-        float carPosition = World.GetCarPosition();
+    }
+    case WM_TIMER: {
+        unsigned key_state = 0;
+        if (GetAsyncKeyState(VK_UP))
+            key_state |= windowKeyState::UP;
+        if (GetAsyncKeyState(VK_DOWN))
+            key_state |= windowKeyState::DOWN;
+        if (GetAsyncKeyState(VK_LEFT))
+            key_state |= windowKeyState::LEFT;
+        if (GetAsyncKeyState(VK_RIGHT))
+            key_state |= windowKeyState::RIGHT;
+        World.Drive(key_state, 20);
+    }
+    case WM_PAINT: {
+        float carPosition = World.GetCarPositionX();
         float carAngle = World.GetCarAngle();
         windowPaint::paint(hWnd, carPosition, carAngle);
     }
-        break;
-    case WM_KEYDOWN:
-    case WM_KEYUP:
-    case VK_LEFT:
-    case VK_RIGHT:
-
-        break;
+    break;
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
