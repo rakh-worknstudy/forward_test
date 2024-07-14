@@ -1,11 +1,18 @@
 #include "WindowPaint.h"
 #include <tchar.h>
+#include <d2d1.h>
+#pragma comment(lib, "d2d1")
+#include <dwrite.h>
+#pragma comment(lib, "dwrite")
 
 namespace windowPaint {
     constexpr float FLOAT_UNINITIALIZED = 0.0f;
 
-    ID2D1Factory          * factory = NULL;
+    ID2D1Factory          * factory      = NULL;
     ID2D1HwndRenderTarget * renderTarget = NULL;
+
+    IDWriteFactory    * textFactory = NULL;
+    IDWriteTextFormat * textFormat  = NULL;
 
     namespace road {
         enum brush_e {
@@ -80,7 +87,7 @@ namespace windowPaint {
             }
         }
 
-        static int paint(float carPositionY, int carTimesY) {
+        static int paint(float carPositionY, int carTimesY, UINT8 drive_state) {
             paint_surface();
 
             static constexpr unsigned DELIM_TYPE_LENGTH_U = 10;
@@ -111,17 +118,32 @@ namespace windowPaint {
 
             float current_bottom = car_paint_position + car_y_delta_paint + (DELIM_TYPE_LENGTH_U - delim_left) * size::delimStrokeLength;
             if (current_bottom < bottom)
-                delim_type ? paint_delim_solid(current_bottom, bottom) : paint_delim_dash(current_bottom, bottom, -car_y_delta_paint);
+                ;//    delim_type ? paint_delim_solid(current_bottom, bottom) : paint_delim_dash(current_bottom, bottom, -car_y_delta_paint);
             else
                 current_bottom = bottom;
 
             float current_top = car_paint_position - car_y_delta_paint + delim_left * size::delimStrokeLength;
             if (current_top > 0.0f)
-                delim_type ? paint_delim_solid(0, current_top) : paint_delim_dash(0, current_top, car_y_delta_paint);
+                ;//    delim_type ? paint_delim_solid(0, current_top) : paint_delim_dash(0, current_top, car_y_delta_paint);
             else
                 current_top = top;
 
-            delim_type ? paint_delim_dash(current_top, current_bottom, car_y_delta_paint) : paint_delim_solid(current_top, current_bottom);
+            if (delim_type) {
+                paint_delim_dash(current_top, current_bottom, car_y_delta_paint);
+            } else {
+                //if (drive_state & 0x01) {
+                    static const WCHAR cross_solid[] = _T("SOLID CROSSED");
+                    D2D1_RECT_F textRect;
+                    D2D1_RECT_F roadRect = road::size::surfaceRect;
+                    textRect.left = roadRect.right + 10;
+                    textRect.top = 10;
+                    textRect.bottom = 40;
+                    textRect.right = textRect.left + 400;
+                    renderTarget->DrawTextW(cross_solid, (sizeof(cross_solid) / (sizeof(WCHAR) / sizeof(char))), 
+                                            textFormat, &textRect, brush[brush_e::brush_surface]);
+                //}
+                paint_delim_solid(current_top, current_bottom);
+            }
 
            // paint_delim_dash(size::surfaceRect.top, size::surfaceRect.bottom, 0);
 
@@ -189,6 +211,8 @@ namespace windowPaint {
     int factory_init(HWND hWnd) {
         if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &factory)))
             return -1;
+        if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(textFactory), reinterpret_cast<IUnknown **>(&textFactory))))
+            return -1;
         return 0;
     }
 
@@ -219,6 +243,10 @@ namespace windowPaint {
         if (FAILED(renderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), &car::brush[car::brush_car])))
             return -1;
 
+        if (FAILED(textFactory->CreateTextFormat(L"Verdana", NULL, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+                                                 DWRITE_FONT_STRETCH_NORMAL, 30, L"", &textFormat)))
+            return -1;
+
         road::resize();
         car::resize();
 
@@ -242,7 +270,7 @@ namespace windowPaint {
         return 0;
     }
 
-    int paint(HWND hWnd, float carPositionX, float carPositionY, unsigned carTimesY, float carAngle) {
+    int paint(HWND hWnd, float carPositionX, float carPositionY, unsigned carTimesY, float carAngle, UINT8 drive_state) {
         if (target_brushes_and_size_init(hWnd))
             return -1;
 
@@ -252,7 +280,7 @@ namespace windowPaint {
         renderTarget->BeginDraw();
         renderTarget->Clear(D2D1::ColorF(D2D1::ColorF::AntiqueWhite));
 
-        road::paint(carPositionY, carTimesY);
+        road::paint(carPositionY, carTimesY, drive_state);
         car::paint(carPositionX, carAngle);
 
         HRESULT result = renderTarget->EndDraw();
@@ -277,6 +305,8 @@ namespace windowPaint {
     int safe_release(void) {
         safe_release_ptr(&factory);
         safe_release_ptr(&renderTarget);
+        safe_release_ptr(&textFactory);
+        safe_release_ptr(&textFormat);
         for (int i = road::brush_begin; i < road::brush_count; ++i)
             safe_release_ptr(&road::brush[i]);
         for (int i = car::brush_begin; i < car::brush_count; ++i)

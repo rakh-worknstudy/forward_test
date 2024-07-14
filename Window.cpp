@@ -111,6 +111,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         return 1;
     }
 
+    UINT8 drive_state = 0;
     switch (message) {
     case WM_COMMAND: {
         int wmId = LOWORD(wParam);
@@ -140,7 +141,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             key_state |= windowKeyState::LEFT;
         if (GetAsyncKeyState(VK_RIGHT))
             key_state |= windowKeyState::RIGHT;
-        World.Drive(key_state, 20);
+        drive_state = World.Drive(key_state, 20);
 
         if (!World.StateChanged())
             break;
@@ -150,7 +151,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         float pos_y = World.GetCarPositionY();
         int times_y = World.GetCarYTimesLast();
         float angle = World.GetCarAngle();
-        windowPaint::paint(hWnd, pos_x, pos_y, times_y, angle);
+        windowPaint::paint(hWnd, pos_x, pos_y, times_y, angle, drive_state);
     }
     break;
     case WM_DESTROY:

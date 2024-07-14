@@ -312,20 +312,23 @@ namespace world {
         return Car.StateChanged();
     }
 
-    static inline uint8_t car_check_solid_crossed(void) {
-        if (true)
+    static inline uint8_t car_check_solid_crossed(float car_position, float car_angle, float car_length) {
+        float car_length_x_2 = car_length * cosf(car_angle) / 2;
+        if (car_position < 0.5f && car_position + car_length_x_2 > 0.5f)
+            return CAR_STATE_SOLID_CROSSED;
+        else if (car_position > 0.5f && car_position - car_length_x_2 < 0.5f)
             return CAR_STATE_SOLID_CROSSED;
         return CAR_STATE_NONE;
     }
 
-    static inline uint8_t car_check_wrong_direction(void) {
-        if (true)
-            return CAR_STATE_WRONG_DIRECTION;
+    static inline uint8_t car_check_wrong_direction(float car_position, float car_angle) {
+        if (car_position < 0.5f && car_angle < WORLD_M_PI)
+            return CAR_STATE_SOLID_CROSSED;
         return CAR_STATE_SOLID_CROSSED;
     }
 
     uint8_t World::CarStateCheck(void) {
-        return car_check_solid_crossed() | car_check_wrong_direction();
+        return car_check_solid_crossed(Car.GetX(), Car.GetAngle(), Car.GetLength()) | car_check_wrong_direction(Car.GetX(), Car.GetAngle());
     }
 
     int World::GetCarYTimesLast(void) const {
