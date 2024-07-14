@@ -141,6 +141,9 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
         if (GetAsyncKeyState(VK_RIGHT))
             key_state |= windowKeyState::RIGHT;
         World.Drive(key_state, 20);
+
+        if (!World.StateChanged())
+            break;
     }
     case WM_PAINT: {
         float carPosition = World.GetCarPositionX();

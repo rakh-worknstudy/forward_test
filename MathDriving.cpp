@@ -13,11 +13,12 @@ namespace world {
         width = CAR_WIDTH_BASE;
         x_pos = CAR_X_POS_BASE;
         y_pos = CAR_Y_POS_BASE;
-        y_fragment = CAR_Y_FRAGMENT;
+        y_times_last = 0;
         angle = CAR_ANGLE_PHASE + CAR_ANGLE_BASE;
         sinLast = std::sinf(angle);
         cosLast = std::cosf(angle);
         speed = CAR_SPEED_BASE;
+        position_changed = false;
     }
     Car::~Car(void) {}
 
@@ -69,6 +70,7 @@ namespace world {
     }
 
     void Car::Drive(unsigned message, unsigned ms_elapsed) {
+        position_changed = false;
         static constexpr unsigned TICK_MS = 20;
         static unsigned ms_missed = 0;
 
@@ -112,6 +114,7 @@ namespace world {
     }
 
     void Car::Move(unsigned message) {
+        y_times_last = 0;
         if (speed == 0.0f)
             return;
 
@@ -122,6 +125,17 @@ namespace world {
         } else {
             Turn(0.0f);
         }
+
+        while (y_pos > 1.0f) {
+            y_pos -= 1.0f;
+            ++y_times_last;
+        }
+        while (y_pos < -1.0f) {
+            y_pos += 1.0f;
+            --y_times_last;
+        }
+
+        position_changed = true;
     }
 
     static inline float get_new_angle(float angle, float delta) {
@@ -156,12 +170,21 @@ namespace world {
 
             sinLast = sin_new;
             cosLast = cos_new;
+            angle = angle_new;
         }
     }
 
     void Car::Bump(float x_lim) {
         speed = 0.0f;
         x_pos = x_lim;
+    }
+
+    bool Car::StateChanged(void) const {
+        return position_changed;
+    }
+
+    int Car::GetYTimesLast(void) const {
+        return y_times_last;
     }
 
 //  ----------------------------------------------------------------
@@ -185,9 +208,37 @@ namespace world {
 
     Road::Road(void) {
         RandFragments();
-        currentFragment = delim.begin();
     }
     Road::~Road(void) {}
+
+    void Road::GetFragmentNumber(unsigned& current, unsigned& position, int delta) {
+        while (delta) {
+            if (delta < 0) {
+                if (-delta < position) {
+                    position += delta;
+                    delta = 0;
+                } else {
+                    delta += position;
+                    --current;
+                    if (current < 0)
+                        current = delim.size();
+                    position = delim[current].first;
+
+                }
+            } else {
+                if (delta < position) {
+                    position -= delta;
+                    delta = 0;
+                } else {
+                    delta -= position;
+                    ++current;
+                    if (current > delim.size())
+                        current = 0;
+                    position = delim[current].first;
+                }
+            }
+        }
+    }
 
     void Road::RandFragments(void) {
         fragment_t fragment;
@@ -219,6 +270,8 @@ namespace world {
 //  ----------------------------------------------------------------
     World::World(void) : Road(), Car() {
         CarStateCheck();
+        currentRoadFragment = 0;
+        currentCarPosition = 0;
     }
     World::~World(void) {
         Road.~Road();
@@ -249,7 +302,14 @@ namespace world {
         else if (Car.GetX() > WORLD_SCALE_BASE)
             Car.Bump(WORLD_SCALE_BASE);
 
+        int fragment_change = Car.GetYTimesLast();
+        Road.GetFragmentNumber(currentRoadFragment, currentCarPosition, fragment_change);
+
         return CarStateCheck();
+    }
+
+    bool World::StateChanged(void) const {
+        return Car.StateChanged();
     }
 
     static inline uint8_t car_check_solid_crossed(void) {
