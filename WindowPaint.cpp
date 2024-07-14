@@ -27,11 +27,12 @@ namespace windowPaint {
                                                   FLOAT_UNINITIALIZED, FLOAT_UNINITIALIZED);
 
             float delim = FLOAT_UNINITIALIZED;
+            float delimStrokeLength = FLOAT_UNINITIALIZED;
             float delimWidth = FLOAT_UNINITIALIZED;
         }   //  size
 
         static int resize(void);
-        static int paint(void);
+        static int paint(float carPositionY, int carTimesY);
 
         static int resize(void) {
             if (!renderTarget)
@@ -46,6 +47,7 @@ namespace windowPaint {
             size::surfaceRect = D2D1::RectF(left, top, right, bottom);
 
             size::delim = targetSize.width * size::RELATIVE_DELIM;
+            size::delimStrokeLength = (right - left) / 10.0f;
             size::delimWidth = targetSize.width * size::RELATIVE_DELIM_WIDTH;
 
             return 0;
@@ -61,9 +63,68 @@ namespace windowPaint {
                 size::delimWidth);
         }
 
-        static int paint(void) {
+        static inline void paint_delim_dash(float from, float to, float delta) {
+            if (from > to) {
+                float temp = from;
+                from = to;
+                to = temp;
+            }
+
+            from += delta;
+            to += delta;
+
+            while (from < to) {
+                from += size::delimStrokeLength;
+                paint_delim_solid(from, from + size::delimStrokeLength);
+                from += size::delimStrokeLength;
+            }
+        }
+
+        static int paint(float carPositionY, int carTimesY) {
             paint_surface();
-            paint_delim_solid(size::surfaceRect.top, size::surfaceRect.bottom);
+
+            static constexpr unsigned DELIM_TYPE_LENGTH_U = 10;
+
+            static char delim_type = 0x00;
+            static unsigned delim_left = DELIM_TYPE_LENGTH_U;
+
+            if (carTimesY > 0) {
+                unsigned add = carTimesY;
+                while (delim_left < add) {
+                    delim_type = (delim_type) ? 0x00 : 0x01;
+                    delim_left += DELIM_TYPE_LENGTH_U;
+                }
+                delim_left -= add;
+            } else if (carTimesY < 0) {
+                unsigned sub = -carTimesY;
+                delim_left += sub;
+                unsigned times = delim_left / DELIM_TYPE_LENGTH_U;
+                if (times % 2)
+                    delim_type = (delim_type) ? 0x00 : 0x01;
+            }
+
+            float top = size::surfaceRect.top;
+            float bottom = size::surfaceRect.bottom;
+            float car_paint_position = bottom * 0.5f;
+
+            float car_y_delta_paint = carPositionY * (size::surfaceRect.right - size::surfaceRect.left);
+
+            float current_bottom = car_paint_position + car_y_delta_paint + (DELIM_TYPE_LENGTH_U - delim_left) * size::delimStrokeLength;
+            if (current_bottom < bottom)
+                delim_type ? paint_delim_solid(current_bottom, bottom) : paint_delim_dash(current_bottom, bottom, -car_y_delta_paint);
+            else
+                current_bottom = bottom;
+
+            float current_top = car_paint_position - car_y_delta_paint + delim_left * size::delimStrokeLength;
+            if (current_top > 0.0f)
+                delim_type ? paint_delim_solid(0, current_top) : paint_delim_dash(0, current_top, car_y_delta_paint);
+            else
+                current_top = top;
+
+            delim_type ? paint_delim_dash(current_top, current_bottom, car_y_delta_paint) : paint_delim_solid(current_top, current_bottom);
+
+           // paint_delim_dash(size::surfaceRect.top, size::surfaceRect.bottom, 0);
+
             return 0;
         }
     }   //  road
@@ -181,7 +242,7 @@ namespace windowPaint {
         return 0;
     }
 
-    int paint(HWND hWnd, float carPosition, float carAngle) {
+    int paint(HWND hWnd, float carPositionX, float carPositionY, unsigned carTimesY, float carAngle) {
         if (target_brushes_and_size_init(hWnd))
             return -1;
 
@@ -191,8 +252,8 @@ namespace windowPaint {
         renderTarget->BeginDraw();
         renderTarget->Clear(D2D1::ColorF(D2D1::ColorF::AntiqueWhite));
 
-        road::paint();
-        car::paint(carPosition, carAngle);
+        road::paint(carPositionY, carTimesY);
+        car::paint(carPositionX, carAngle);
 
         HRESULT result = renderTarget->EndDraw();
         if (FAILED(result) || result == D2DERR_RECREATE_TARGET) {

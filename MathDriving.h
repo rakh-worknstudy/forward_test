@@ -32,6 +32,7 @@ namespace world {
         static constexpr unsigned MIN_FRAGMENT_LENGTH_U = 50;
         static constexpr unsigned MAX_FRAGMENT_LENGTH_U = 150; //  Note: [0], [N-1] and [N-2] might be same type
         
+        //  Рудименты. Пришлось вырезать.
         std::vector<fragment_t> delim;
         void RandFragments(void);
     };
@@ -95,6 +96,7 @@ namespace world {
         uint8_t Drive(unsigned message, unsigned ms_elapsed);
         bool StateChanged(void) const;
         
+        int GetCarYTimesLast(void) const;
     private:
         Road Road;
         Car Car;

@@ -9,7 +9,7 @@ namespace windowPaint {
     int safe_release(void);
     int car_size_init(float relative_length, float relative_width);
     int resize(HWND);
-    int paint(HWND, float carPosition, float carAngle);
+    int paint(HWND hWnd, float carPositionX, float carPositionY, unsigned carTimesY, float carAngle);
 }   //  windowPaint
 
 

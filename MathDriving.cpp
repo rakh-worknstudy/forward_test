@@ -327,5 +327,9 @@ namespace world {
     uint8_t World::CarStateCheck(void) {
         return car_check_solid_crossed() | car_check_wrong_direction();
     }
+
+    int World::GetCarYTimesLast(void) const {
+        return Car.GetYTimesLast();
+    }
 }   //  world
 

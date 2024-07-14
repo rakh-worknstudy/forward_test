@@ -146,9 +146,11 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
             break;
     }
     case WM_PAINT: {
-        float carPosition = World.GetCarPositionX();
-        float carAngle = World.GetCarAngle();
-        windowPaint::paint(hWnd, carPosition, carAngle);
+        float pos_x = World.GetCarPositionX();
+        float pos_y = World.GetCarPositionY();
+        int times_y = World.GetCarYTimesLast();
+        float angle = World.GetCarAngle();
+        windowPaint::paint(hWnd, pos_x, pos_y, times_y, angle);
     }
     break;
     case WM_DESTROY:
